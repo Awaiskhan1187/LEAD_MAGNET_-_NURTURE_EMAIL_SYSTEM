@@ -1,0 +1,1098 @@
+{
+  "name": "DB project",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-capture",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "3d573b7a-b809-40b7-91a7-fb58b7d3a42e",
+      "name": "Lead Capture Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -3536,
+        -16
+      ],
+      "webhookId": "lead-capture-001",
+      "notes": "Receives opt-in form data: first_name, email, source, lead_magnet"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "=\"{{ $json.first_name }}\"",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "=\"{{$json.email }}\"",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "dddb2dc7-2551-4d68-959a-f69ee07328c9",
+      "name": "Validate Lead Data",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -3328,
+        -16
+      ],
+      "notes": "Checks required fields are present"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Missing required fields: email or first_name\" }",
+        "options": {}
+      },
+      "id": "376ec5cc-272c-4765-96f8-fc9145e6b6ba",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -3056,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\nconst now = new Date();\n\n// Handle both formats - if data is nested in 'body', extract it\nlet data = lead;\nif (lead.body) {\n  data = lead.body;\n}\n\nreturn [{\n  json: {\n    id: 'lead_' + Date.now(),\n    first_name: data.fname?.trim() || data.first_name?.trim(),\n    email: (data.email?.toLowerCase().trim() || data.email?.toLowerCase().trim()),\n    company: data.company || '',\n    phone: data.phone || '',\n    source: data.lead_source?.toLowerCase() || data.source?.toLowerCase() || 'organic',\n    lead_magnet: data.Lead_magnet || data.lead_magnet || 'general',\n    created_at: now.toISOString(),\n    lead_score: 10,\n    segment: 'new_subscriber',\n    tags: ['new_lead', 'unverified'],\n    email_count: 0,\n    open_count: 0,\n    click_count: 0,\n    last_activity: now.toISOString()\n  }\n}];"
+      },
+      "id": "61ab5a10-4dfb-474a-9352-daddb5dd8d92",
+      "name": "Enrich & Normalize Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3136,
+        -272
+      ],
+      "notes": "Normalizes data, assigns initial lead score, sets segment"
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "email": "={{ $('Enrich & Normalize Lead').item.json.email }}",
+        "additionalFields": {
+          "firstName": "={{ $('Enrich & Normalize Lead').item.json.first_name }}",
+          "lastName": "={{ $('Lead Capture Webhook').item.json.body.lname }}"
+        },
+        "options": {}
+      },
+      "id": "cceb0615-8dbd-4534-a087-6905ac3044ac",
+      "name": "Create CRM Contact (HubSpot)",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2,
+      "position": [
+        -2768,
+        -16
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "LSRrSsRcmmDuIXoS",
+          "name": "HubSpot App Token account 2"
+        }
+      },
+      "notes": "Creates contact in HubSpot CRM. Replace with your CRM node."
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "Welcome Massage",
+        "emailType": "text",
+        "message": "=Hi {{ $json.fname }},  Thank you for signing up!  Your free {{ $json.Lead_magnet }} is ready:    Over the next few days, we'll send you practical tips about your interest.  Best regards, Awais Khan",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -2480,
+        -48
+      ],
+      "id": "9aa145d5-c6f7-42d9-917b-80b71fd791ce",
+      "name": "Send a message",
+      "webhookId": "312a22bf-6dd2-4101-9e98-6dccf49daad3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pQs7oBmT2oNHeqNw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -2272,
+        -48
+      ],
+      "id": "bdf5c837-df03-41f0-b299-8fc95afbb82c",
+      "name": "Wait",
+      "webhookId": "d3a3ca5a-d7bd-47ed-9160-bc8c0005bcac"
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1712,
+        -48
+      ],
+      "id": "1af80720-329c-441d-a709-d8881727ff10",
+      "name": "Wait1",
+      "webhookId": "d3a3ca5a-d7bd-47ed-9160-bc8c0005bcac"
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1264,
+        -496
+      ],
+      "id": "b73f4a97-ce03-45e3-a4cb-4d90567752cd",
+      "name": "Wait2",
+      "webhookId": "d3a3ca5a-d7bd-47ed-9160-bc8c0005bcac"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Lead Data').item.json.body.email }}",
+        "subject": "=\"Quick win for you, {{ $('Validate Lead Data').item.json.body.fname }} \",",
+        "emailType": "text",
+        "message": "=\"Hi {{ $('Validate Lead Data').item.json.body.fname }},\n\nGlad to have you here\n\nHere’s a quick win you can apply today:\n\nFocus on ONE clear goal instead of multiple ideas at once.\n\nMost people fail because they try to do everything at the same time.\n\nIf you apply this, you’ll already be ahead of 90% of beginners.\n\nTomorrow I’ll share something even more powerful.\n\nTalk soon,\\nAwais Khan\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -1104,
+        -496
+      ],
+      "id": "f6167ef3-add2-4a9f-bbef-ef50d517c604",
+      "name": "Send a message3",
+      "webhookId": "312a22bf-6dd2-4101-9e98-6dccf49daad3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pQs7oBmT2oNHeqNw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -928,
+        -496
+      ],
+      "id": "a7b32134-b4a0-4d81-8546-eaa7eb1b5042",
+      "name": "Wait3",
+      "webhookId": "d3a3ca5a-d7bd-47ed-9160-bc8c0005bcac"
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1248,
+        48
+      ],
+      "id": "97c0863e-d24f-4c5c-8c0d-f3bef5bc65db",
+      "name": "Wait4",
+      "webhookId": "d3a3ca5a-d7bd-47ed-9160-bc8c0005bcac"
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -896,
+        48
+      ],
+      "id": "20681006-5bef-4e63-badc-c07f3a68c69c",
+      "name": "Wait5",
+      "webhookId": "d3a3ca5a-d7bd-47ed-9160-bc8c0005bcac"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Lead Data').item.json.body.email }}",
+        "subject": "=\"Quick win for you, {{ $('Validate Lead Data').item.json.body.fname }} \",",
+        "emailType": "text",
+        "message": "=\"Hi {{ $('Validate Lead Data').item.json.body.fname }},\n\nGlad to have you here\n\nHere’s a quick win you can apply today:\n\nFocus on ONE clear goal instead of multiple ideas at once.\n\nMost people fail because they try to do everything at the same time.\n\nIf you apply this, you’ll already be ahead of 90% of beginners.\n\nTomorrow I’ll share something even more powerful.\n\nTalk soon,\\nAwais Khan\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -1408,
+        48
+      ],
+      "id": "d640dcab-2c3c-44e6-bd92-0f776ddd2c26",
+      "name": "Send a message4",
+      "webhookId": "312a22bf-6dd2-4101-9e98-6dccf49daad3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pQs7oBmT2oNHeqNw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Lead Data').item.json.body.email }}",
+        "subject": "=\"Quick win for you, {{ $('Validate Lead Data').item.json.body.fname }} \",",
+        "emailType": "text",
+        "message": "=\"Hi {{ $('Validate Lead Data').item.json.body.fname }},\n\nGlad to have you here\n\nHere’s a quick win you can apply today:\n\nFocus on ONE clear goal instead of multiple ideas at once.\n\nMost people fail because they try to do everything at the same time.\n\nIf you apply this, you’ll already be ahead of 90% of beginners.\n\nTomorrow I’ll share something even more powerful.\n\nTalk soon,\\nAwais Khan\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -1104,
+        48
+      ],
+      "id": "a19a976f-e26b-4fd5-8014-419868db8bdc",
+      "name": "Send a message5",
+      "webhookId": "312a22bf-6dd2-4101-9e98-6dccf49daad3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pQs7oBmT2oNHeqNw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -464,
+        -480
+      ],
+      "id": "54e377ac-d76e-4055-adf8-6f73c0da778e",
+      "name": "Wait6",
+      "webhookId": "d3a3ca5a-d7bd-47ed-9160-bc8c0005bcac"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Lead Data').item.json.body.email }}",
+        "subject": "=\"Quick win for you, {{ $('Validate Lead Data').item.json.body.fname }} \",",
+        "emailType": "text",
+        "message": "=\"Hi {{ $('Validate Lead Data').item.json.body.fname }},\n\nGlad to have you here\n\nHere’s a quick win you can apply today:\n\nFocus on ONE clear goal instead of multiple ideas at once.\n\nMost people fail because they try to do everything at the same time.\n\nIf you apply this, you’ll already be ahead of 90% of beginners.\n\nTomorrow I’ll share something even more powerful.\n\nTalk soon,\\nAwais Khan\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -304,
+        -480
+      ],
+      "id": "36ab4d4d-9525-408f-b324-1b077967d926",
+      "name": "Send a message7",
+      "webhookId": "312a22bf-6dd2-4101-9e98-6dccf49daad3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pQs7oBmT2oNHeqNw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -128,
+        -480
+      ],
+      "id": "638ad941-ade0-4a44-9eb2-d2fe56e9ed1b",
+      "name": "Wait7",
+      "webhookId": "d3a3ca5a-d7bd-47ed-9160-bc8c0005bcac"
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -448,
+        80
+      ],
+      "id": "9f5ec9bf-e660-435b-a11f-8f5ba77dffc0",
+      "name": "Wait8",
+      "webhookId": "d3a3ca5a-d7bd-47ed-9160-bc8c0005bcac"
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -96,
+        80
+      ],
+      "id": "daa9c188-4613-44ae-8914-e0c8f8cd2fe5",
+      "name": "Wait9",
+      "webhookId": "d3a3ca5a-d7bd-47ed-9160-bc8c0005bcac"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Lead Data').item.json.body.email }}",
+        "subject": "=\"Quick win for you, {{ $('Validate Lead Data').item.json.body.fname }} \",",
+        "emailType": "text",
+        "message": "=\"Hi {{ $('Validate Lead Data').item.json.body.fname }},\n\nGlad to have you here\n\nHere’s a quick win you can apply today:\n\nFocus on ONE clear goal instead of multiple ideas at once.\n\nMost people fail because they try to do everything at the same time.\n\nIf you apply this, you’ll already be ahead of 90% of beginners.\n\nTomorrow I’ll share something even more powerful.\n\nTalk soon,\\nAwais Khan\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -608,
+        80
+      ],
+      "id": "253278ed-ae3c-4637-84f8-baa7d54c6fbb",
+      "name": "Send a message8",
+      "webhookId": "312a22bf-6dd2-4101-9e98-6dccf49daad3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pQs7oBmT2oNHeqNw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Lead Data').item.json.body.email }}",
+        "subject": "=\"Quick win for you, {{ $('Validate Lead Data').item.json.body.fname }} \",",
+        "emailType": "text",
+        "message": "=\"Hi {{ $('Validate Lead Data').item.json.body.fname }},\n\nGlad to have you here\n\nHere’s a quick win you can apply today:\n\nFocus on ONE clear goal instead of multiple ideas at once.\n\nMost people fail because they try to do everything at the same time.\n\nIf you apply this, you’ll already be ahead of 90% of beginners.\n\nTomorrow I’ll share something even more powerful.\n\nTalk soon,\\nAwais Khan\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -304,
+        80
+      ],
+      "id": "84747c42-c7dd-4131-b428-12b53a8e07d4",
+      "name": "Send a message9",
+      "webhookId": "312a22bf-6dd2-4101-9e98-6dccf49daad3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pQs7oBmT2oNHeqNw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Lead Data').item.json.body.email }}",
+        "subject": "=\"Quick win for you, {{ $('Validate Lead Data').item.json.body.fname }} \",",
+        "emailType": "text",
+        "message": "=\"Hi {{ $('Validate Lead Data').item.json.body.fname }},\n\nGlad to have you here\n\nHere’s a quick win you can apply today:\n\nFocus on ONE clear goal instead of multiple ideas at once.\n\nMost people fail because they try to do everything at the same time.\n\nIf you apply this, you’ll already be ahead of 90% of beginners.\n\nTomorrow I’ll share something even more powerful.\n\nTalk soon,\\nAwais Khan\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -672,
+        -480
+      ],
+      "id": "dc9e5667-2d21-458a-a856-d79de927578f",
+      "name": "Send a message14",
+      "webhookId": "312a22bf-6dd2-4101-9e98-6dccf49daad3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pQs7oBmT2oNHeqNw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        352,
+        -448
+      ],
+      "id": "1120a006-29d4-4dd7-956a-3dd3fba6c330",
+      "name": "Wait10",
+      "webhookId": "d3a3ca5a-d7bd-47ed-9160-bc8c0005bcac"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Lead Data').item.json.body.email }}",
+        "subject": "=\"Quick win for you, {{ $('Validate Lead Data').item.json.body.fname }} \",",
+        "emailType": "text",
+        "message": "=\"Hi {{ $('Validate Lead Data').item.json.body.fname }},\n\nGlad to have you here\n\nHere’s a quick win you can apply today:\n\nFocus on ONE clear goal instead of multiple ideas at once.\n\nMost people fail because they try to do everything at the same time.\n\nIf you apply this, you’ll already be ahead of 90% of beginners.\n\nTomorrow I’ll share something even more powerful.\n\nTalk soon,\\nAwais Khan\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        512,
+        -448
+      ],
+      "id": "932a7972-b3f7-4e71-9e7a-754a642da624",
+      "name": "Send a message10",
+      "webhookId": "312a22bf-6dd2-4101-9e98-6dccf49daad3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pQs7oBmT2oNHeqNw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        688,
+        -448
+      ],
+      "id": "14885bf0-0810-41d2-9e57-c3d8ae221c6b",
+      "name": "Wait11",
+      "webhookId": "d3a3ca5a-d7bd-47ed-9160-bc8c0005bcac"
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        368,
+        128
+      ],
+      "id": "532074e8-4174-49dd-b7ab-1e2c94021612",
+      "name": "Wait12",
+      "webhookId": "d3a3ca5a-d7bd-47ed-9160-bc8c0005bcac"
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        128
+      ],
+      "id": "e9b2aa9a-e8d8-4c82-a506-bb1e9af3a2d4",
+      "name": "Wait13",
+      "webhookId": "d3a3ca5a-d7bd-47ed-9160-bc8c0005bcac"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Lead Data').item.json.body.email }}",
+        "subject": "=\"Quick win for you, {{ $('Validate Lead Data').item.json.body.fname }} \",",
+        "emailType": "text",
+        "message": "=\"Hi {{ $('Validate Lead Data').item.json.body.fname }},\n\nGlad to have you here\n\nHere’s a quick win you can apply today:\n\nFocus on ONE clear goal instead of multiple ideas at once.\n\nMost people fail because they try to do everything at the same time.\n\nIf you apply this, you’ll already be ahead of 90% of beginners.\n\nTomorrow I’ll share something even more powerful.\n\nTalk soon,\\nAwais Khan\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        128
+      ],
+      "id": "49ccc187-5c99-4be7-b064-166ee9037ab6",
+      "name": "Send a message11",
+      "webhookId": "312a22bf-6dd2-4101-9e98-6dccf49daad3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pQs7oBmT2oNHeqNw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Lead Data').item.json.body.email }}",
+        "subject": "=\"Quick win for you, {{ $('Validate Lead Data').item.json.body.fname }} \",",
+        "emailType": "text",
+        "message": "=\"Hi {{ $('Validate Lead Data').item.json.body.fname }},\n\nGlad to have you here\n\nHere’s a quick win you can apply today:\n\nFocus on ONE clear goal instead of multiple ideas at once.\n\nMost people fail because they try to do everything at the same time.\n\nIf you apply this, you’ll already be ahead of 90% of beginners.\n\nTomorrow I’ll share something even more powerful.\n\nTalk soon,\\nAwais Khan\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        512,
+        128
+      ],
+      "id": "637589f7-8671-40f5-aeb9-7626c8043e8f",
+      "name": "Send a message12",
+      "webhookId": "312a22bf-6dd2-4101-9e98-6dccf49daad3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pQs7oBmT2oNHeqNw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Lead Data').item.json.body.email }}",
+        "subject": "=\"Quick win for you, {{ $('Validate Lead Data').item.json.body.fname }} \",",
+        "emailType": "text",
+        "message": "=\"Hi {{ $('Validate Lead Data').item.json.body.fname }},\n\nGlad to have you here\n\nHere’s a quick win you can apply today:\n\nFocus on ONE clear goal instead of multiple ideas at once.\n\nMost people fail because they try to do everything at the same time.\n\nIf you apply this, you’ll already be ahead of 90% of beginners.\n\nTomorrow I’ll share something even more powerful.\n\nTalk soon,\\nAwais Khan\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        144,
+        -448
+      ],
+      "id": "01de3782-0732-4e69-b7ad-34dad77c3af2",
+      "name": "Send a message15",
+      "webhookId": "312a22bf-6dd2-4101-9e98-6dccf49daad3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pQs7oBmT2oNHeqNw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Missing required fields: email or first_name\" }",
+        "options": {}
+      },
+      "id": "79691519-38d7-4e7e-8ed7-d7a7e1fa2c8c",
+      "name": "Error Response1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Lead Data').item.json.body.email }}",
+        "subject": "=\"Quick win for you, {{ $('Validate Lead Data').item.json.body.fname }} \",",
+        "emailType": "text",
+        "message": "=\"Hi {{ $('Validate Lead Data').item.json.body.fname }},\n\nGlad to have you here\n\nHere’s a quick win you can apply today:\n\nFocus on ONE clear goal instead of multiple ideas at once.\n\nMost people fail because they try to do everything at the same time.\n\nIf you apply this, you’ll already be ahead of 90% of beginners.\n\nTomorrow I’ll share something even more powerful.\n\nTalk soon,\\nAwais Khan\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -1504,
+        -496
+      ],
+      "id": "a55231aa-ce77-4bd8-9c8c-1c0183b19da2",
+      "name": "Send a message6",
+      "webhookId": "312a22bf-6dd2-4101-9e98-6dccf49daad3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pQs7oBmT2oNHeqNw",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Lead Data').item.json.body.email }}",
+        "subject": "=\"Quick win for you, {{ $('Validate Lead Data').item.json.body.fname }} \",",
+        "emailType": "text",
+        "message": "=\"Hi {{ $('Validate Lead Data').item.json.body.fname }},\n\nGlad to have you here\n\nHere’s a quick win you can apply today:\n\nFocus on ONE clear goal instead of multiple ideas at once.\n\nMost people fail because they try to do everything at the same time.\n\nIf you apply this, you’ll already be ahead of 90% of beginners.\n\nTomorrow I’ll share something even more powerful.\n\nTalk soon,\\nAwais Khan\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -2016,
+        -48
+      ],
+      "id": "6cad4e72-1f9e-4b66-8a0a-6841c3c565a8",
+      "name": "Send a message13",
+      "webhookId": "312a22bf-6dd2-4101-9e98-6dccf49daad3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pQs7oBmT2oNHeqNw",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Lead Capture Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n-production-bd24.up.railway.app",
+            "user-agent": "PostmanRuntime/7.54.0",
+            "content-length": "141",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate, br",
+            "cache-control": "no-cache",
+            "content-type": "application/json",
+            "postman-token": "df112278-e7cd-401f-9a64-ef01dd9adb98",
+            "x-forwarded-for": "54.86.50.139, 152.233.47.65",
+            "x-forwarded-host": "n8n-production-bd24.up.railway.app",
+            "x-forwarded-proto": "https",
+            "x-railway-edge": "railway/us-east4-eqdc4a",
+            "x-railway-request-id": "Jjq7w9oQS7SfhLlEwoOzXw",
+            "x-real-ip": "54.86.50.139",
+            "x-request-start": "1780516384054"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "fname": "gul",
+            "lname": "Khan",
+            "email": "codekhan2003@gmail.com",
+            "Phone_Number": 1341414,
+            "interest": "AI Automation"
+          },
+          "webhookUrl": "https://n8n-production-bd24.up.railway.app/webhook-test/lead-capture",
+          "executionMode": "test"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Lead Capture Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Enrich & Normalize Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich & Normalize Lead": {
+      "main": [
+        [
+          {
+            "node": "Create CRM Contact (HubSpot)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create CRM Contact (HubSpot)": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message3": {
+      "main": [
+        [
+          {
+            "node": "Wait3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Send a message13",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Send a message6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "Send a message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait4": {
+      "main": [
+        [
+          {
+            "node": "Send a message5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait5": {
+      "main": [
+        [
+          {
+            "node": "Send a message14",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait3": {
+      "main": [
+        [
+          {
+            "node": "Send a message4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message4": {
+      "main": [
+        [
+          {
+            "node": "Wait4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message5": {
+      "main": [
+        [
+          {
+            "node": "Wait5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait6": {
+      "main": [
+        [
+          {
+            "node": "Send a message7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message7": {
+      "main": [
+        [
+          {
+            "node": "Wait7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait7": {
+      "main": [
+        [
+          {
+            "node": "Send a message8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait8": {
+      "main": [
+        [
+          {
+            "node": "Send a message9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message8": {
+      "main": [
+        [
+          {
+            "node": "Wait8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message9": {
+      "main": [
+        [
+          {
+            "node": "Wait9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait9": {
+      "main": [
+        [
+          {
+            "node": "Send a message15",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message14": {
+      "main": [
+        [
+          {
+            "node": "Wait6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait10": {
+      "main": [
+        [
+          {
+            "node": "Send a message10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message10": {
+      "main": [
+        [
+          {
+            "node": "Wait11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait11": {
+      "main": [
+        [
+          {
+            "node": "Send a message11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait12": {
+      "main": [
+        [
+          {
+            "node": "Send a message12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message11": {
+      "main": [
+        [
+          {
+            "node": "Wait12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message12": {
+      "main": [
+        [
+          {
+            "node": "Wait13",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message15": {
+      "main": [
+        [
+          {
+            "node": "Wait10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait13": {
+      "main": [
+        [
+          {
+            "node": "Error Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message13": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message6": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "939fa633-7f00-4dbe-a84b-c01a6da0e13e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "db02e95a0af8e544d85eb889b0400a36fe8cd12b5078b46214758bc4ab898d0d"
+  },
+  "id": "WTZEdXVBIN1fsEiD",
+  "tags": [
+    {
+      "updatedAt": "2026-05-26T04:33:24.364Z",
+      "createdAt": "2026-05-26T04:33:24.364Z",
+      "id": "krnbobJjNFo68Bnp",
+      "name": "email-marketing"
+    },
+    {
+      "updatedAt": "2026-05-26T04:33:24.115Z",
+      "createdAt": "2026-05-26T04:33:24.115Z",
+      "id": "zjLKEvmrj9NXwk7Z",
+      "name": "lead-nurture"
+    },
+    {
+      "updatedAt": "2026-05-26T04:33:24.359Z",
+      "createdAt": "2026-05-26T04:33:24.359Z",
+      "id": "pGRiWjFitCyDZcyD",
+      "name": "automation"
+    }
+  ]
+}
