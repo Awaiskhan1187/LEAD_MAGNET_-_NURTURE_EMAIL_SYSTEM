@@ -20,10 +20,10 @@ from pathlib import Path
 # ============================================================================
 
 N8N_WEBHOOK_URL = "https://n8n-production-bd24.up.railway.app/webhook/lead-capture"
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "..."
 DATABASE_PATH = "leads.db"
 
-# ============================================================================
+# =================================================================.==========
 # DATABASE SETUP
 # ============================================================================
 
